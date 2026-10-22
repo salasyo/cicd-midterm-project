@@ -3,6 +3,7 @@ from flask import Flask, jsonify
 app = Flask(__name__)
 VERSION = "0.1.0"
 
+
 @app.route("/")
 def home():
     return jsonify(status="healthy", message="CI Foundation Operational")
