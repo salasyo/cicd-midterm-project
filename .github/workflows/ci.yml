@@ -1,0 +1,84 @@
+# Continuous Integration pipeline
+# Runs on every push to main/develop/feature branches and on every pull request
+# targeting main or develop.
+name: CI
+
+on:
+  push:
+    branches: [main, develop, "feature/**", "bugfix/**", "hotfix/**"]
+  pull_request:
+    branches: [main, develop]
+    types: [opened, synchronize, reopened, edited]
+
+jobs:
+  lint:
+    name: Lint (flake8)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+      - name: Run flake8
+        run: flake8 .
+
+  test:
+    name: Test (Python ${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    needs: lint
+    strategy:
+      matrix:
+        python-version: ["3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+      - name: Run pytest
+        run: pytest -v
+
+  build:
+    name: Build package
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install build tools
+        run: pip install build -r requirements.txt
+      - name: Build sdist and wheel
+        run: python -m build
+      - name: Smoke-test the built wheel
+        run: |
+          pip install dist/*.whl
+          python -c "import app; print('import OK:', app.app.name)"
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+  pr-title-check:
+    name: Enforce PR title standard
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - name: Validate Conventional Commit PR title
+        env:
+          TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          if [[ ! "$TITLE" =~ ^(feat|fix|docs|style|refactor|test|chore|ci)(\([a-z0-9-]+\))?:\ .+ ]]; then
+            echo "PR title must look like: 'feat: add health endpoint'"
+            echo "Got: $TITLE"
+            exit 1
+          fi
+          echo "PR title OK: $TITLE"
