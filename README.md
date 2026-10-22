@@ -54,3 +54,11 @@ Hotfixes branch from `main`. Details in [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Branch protection
 `main` and `develop` require a PR, one approval, and passing CI checks before merge.
+
+## API endpoints
+
+| Route | Description |
+|-------|-------------|
+| `/` | Service status |
+| `/health` | Health check |
+| `/version` | App version |
